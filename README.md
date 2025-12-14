@@ -1,4 +1,6 @@
-
+-- ===============================================
+-- 1. CONFIGURAÇÕES DA SUA APLICAÇÃO KEYAUTH
+-- ===============================================
 local KEYAUTH_CONFIG = {
     Name = "ScriptRoblox",
     OwnerID = "tnrXMCnv1p",
@@ -8,32 +10,27 @@ local KEYAUTH_CONFIG = {
 }
 
 -- ===============================================
--- 2. INICIALIZAÇÃO DE SERVIÇOS ROBLOX
+-- 2. SERVIÇOS BÁSICOS PARA O LOADER
 -- ===============================================
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService") -- NECESSÁRIO PARA KEYAUTH
-local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-local camera = Workspace.CurrentCamera
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
+local IsAuthenticated = false
+local KeyAuthGui 
 
 if not HttpService.HttpEnabled then
     warn("[KeyAuth] HttpService não está ativado. O script não pode ser executado.")
     return
 end
 
--- Variáveis de controle de execução
-local IsAuthenticated = false
-local KeyAuthGui 
-
 -- ===============================================
--- 3. FUNÇÃO DE VALIDAÇÃO DA CHAVE KEYAUTH
+-- 3. FUNÇÃO DE VALIDAÇÃO DA CHAVE KEYAUTH (SEM ALTERAÇÕES)
 -- ===============================================
 
 local function ValidateKey(key_input)
+    local LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then return false, "LocalPlayer não encontrado." end
+    
     local full_url = string.format(
         "%s?type=license&key=%s&name=%s&ownerid=%s&secret=%s&version=%s&hwid=%s",
         KEYAUTH_CONFIG.API_URL,
@@ -42,7 +39,7 @@ local function ValidateKey(key_input)
         HttpService:UrlEncode(KEYAUTH_CONFIG.OwnerID),
         HttpService:UrlEncode(KEYAUTH_CONFIG.Secret),
         HttpService:UrlEncode(KEYAUTH_CONFIG.Version),
-        HttpService:UrlEncode(LocalPlayer.UserId)
+        HttpService:UrlEncode(LocalPlayer.UserId) -- Usamos LocalPlayer.UserId
     )
 
     local success, response = pcall(function()
@@ -73,16 +70,17 @@ local function ValidateKey(key_input)
 end
 
 -- ===============================================
--- 4. UI MODERNA DE LOGIN (KEYAUTH)
+-- 4. UI MODERNA DE LOGIN (KEYAUTH) (SEM ALTERAÇÕES)
 -- ===============================================
 
 local function SetupModernKeyUI()
-    -- Cria a ScreenGui no CoreGui e a protege
+    local LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then warn("SetupModernKeyUI falhou: LocalPlayer não existe.") return end
+
     KeyAuthGui = Instance.new("ScreenGui", CoreGui)
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(KeyAuthGui) end end)
     KeyAuthGui.Name = "KeyAuthLoader"
     
-    -- FRAME PRINCIPAL (MODERNO)
     local MainFrame = Instance.new("Frame", KeyAuthGui)
     MainFrame.Size = UDim2.new(0, 350, 0, 200)
     MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
@@ -97,7 +95,6 @@ local function SetupModernKeyUI()
     FrameStroke.Thickness = 2
     FrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- TÍTULO
     local Title = Instance.new("TextLabel", MainFrame)
     Title.Text = KEYAUTH_CONFIG.Name .. " - AUTENTICAÇÃO"
     Title.Size = UDim2.new(1, 0, 0, 40)
@@ -107,7 +104,6 @@ local function SetupModernKeyUI()
     Title.Font = Enum.Font.GothamBold
     Title.TextSize = 20
 
-    -- CAMPO DA CHAVE
     local KeyTextBox = Instance.new("TextBox", MainFrame)
     KeyTextBox.PlaceholderText = "Insira sua Chave de Licença"
     KeyTextBox.Text = ""
@@ -122,7 +118,6 @@ local function SetupModernKeyUI()
     local KeyCorner = Instance.new("UICorner", KeyTextBox)
     KeyCorner.CornerRadius = UDim.new(0, 8)
 
-    -- MENSAGEM DE STATUS
     local StatusLabel = Instance.new("TextLabel", MainFrame)
     StatusLabel.Text = "Aguardando chave..."
     StatusLabel.Size = UDim2.new(0.8, 0, 0, 20)
@@ -133,7 +128,6 @@ local function SetupModernKeyUI()
     StatusLabel.Font = Enum.Font.SourceSans
     StatusLabel.TextSize = 14
 
-    -- BOTÃO DE LOGIN
     local LoginButton = Instance.new("TextButton", MainFrame)
     LoginButton.Text = "ENTRAR"
     LoginButton.Size = UDim2.new(0.8, 0, 0, 40)
@@ -147,7 +141,6 @@ local function SetupModernKeyUI()
     local ButtonCorner = Instance.new("UICorner", LoginButton)
     ButtonCorner.CornerRadius = UDim.new(0, 10)
 
-    -- LÓGICA DO BOTÃO
     LoginButton.MouseButton1Click:Connect(function()
         local key = KeyTextBox.Text:gsub("%s+", "")
         if key == "" then return end
@@ -168,7 +161,6 @@ local function SetupModernKeyUI()
                 KeyAuthGui:Destroy()
                 
             else
-                -- CHAVE INVÁLIDA
                 StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50) 
                 StatusLabel.Text = "KEY INVALIDA!" 
                 
@@ -180,13 +172,19 @@ local function SetupModernKeyUI()
 end
 
 -- ===============================================
--- 5. FUNÇÃO DE INÍCIO DO SCRIPT PRINCIPAL
--- (TODO O SEU CÓDIGO ORIGINAL ESTÁ AQUI DENTRO)
+-- 5. FUNÇÃO DE INÍCIO DO SCRIPT PRINCIPAL (SEU CÓDIGO)
 -- ===============================================
 
 local function RunMainScript()
     
-    -- O SEU CÓDIGO COMEÇA AQUI!
+    -- INICIALIZAÇÃO DE TODOS OS SERVIÇOS DENTRO DA FUNÇÃO
+    local Players = game:GetService("Players")
+    local UserInputService = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+    local LocalPlayer = Players.LocalPlayer
+    local Workspace = game:GetService("Workspace")
+    local camera = Workspace.CurrentCamera
+    local ReplicatedStorage = game:GetService("ReplicatedStorage") 
 
     -- Variáveis de controle de Puxar Itens (Auto Loot)
     local puxarItensToggle = false
@@ -207,16 +205,16 @@ local function RunMainScript()
     local espTracers = {}
     local espHealthBars = {} 
 
-    local safePlayers = {} -- Tabela para armazenar jogadores que o aimbot deve ignorar (DEVE SER ADICIONADA)
-    local isAiming = false -- Variável para controlar se o jogador está mirando (DEVE SER ADICIONADA)
-    local aimbotConnection = nil -- Variável de conexão para o RenderStepped (DEVE SER ADICIONADA)
+    local safePlayers = {} 
+    local isAiming = false 
+    local aimbotConnection = nil 
 
     -- GUI principal
     local gui = Instance.new("ScreenGui")
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
     gui.Name = "GNewStore"
     gui.ResetOnSpawn = false
-    gui.Parent = CoreGui -- Mudado para CoreGui para consistência
+    gui.Parent = CoreGui 
 
     local menu = Instance.new("Frame")
     menu.Size = UDim2.new(0, 500, 0, 400)
@@ -362,6 +360,15 @@ end
 -- 6. LOADER (GARANTE A ORDEM DE EXECUÇÃO)
 -- ===============================================
 
+-- Tenta garantir que o LocalPlayer esteja disponível antes de iniciar a UI
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    repeat 
+        wait() 
+        LocalPlayer = Players.LocalPlayer
+    until LocalPlayer
+end
+
 SetupModernKeyUI()
 
 -- Trava a execução do script até que IsAuthenticated seja verdadeiro (chave válida)
@@ -371,9 +378,6 @@ until IsAuthenticated
 
 -- Se a chave é válida, executa a função que contém o seu robô e a UI principal.
 RunMainScript()
-
--- FIM DO SCRIPT
-
 local tpFrame = Instance.new("Frame")
 tpFrame.Size = UDim2.new(1, 0, 1, 0)
 tpFrame.BackgroundTransparency = 1
