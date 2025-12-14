@@ -1,176 +1,378 @@
+
+local KEYAUTH_CONFIG = {
+    Name = "ScriptRoblox",
+    OwnerID = "tnrXMCnv1p",
+    Secret = "526a68fcee23ec4df14badb3e5a4026aa265c03e7e1fbc08f5106e1448fc4828",
+    Version = "1.0",
+    API_URL = "https://keyauth.win/api/1.2/"
+}
+
+-- ===============================================
+-- 2. INICIALIZAÇÃO DE SERVIÇOS ROBLOX
+-- ===============================================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService") -- NECESSÁRIO PARA KEYAUTH
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local camera = Workspace.CurrentCamera
-local ReplicatedStorage = game:GetService("ReplicatedStorage") 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 
--- Variáveis de controle de Puxar Itens (Auto Loot)
-local puxarItensToggle = false
-local puxarItensCoroutine
-local itens = {
-    "AK47", "Uzi", "PARAFAL", "Glock 17", "Faca", "IA2", "G3", "Dinamite",
-    "Hi Power", "Natalina", "HK416", "Lockpick", "Escudo", "Skate",
-    "Saco de lixo", "Peca de Arma", "Tratamento", "AR-15", "PS5", "C4", "USP", "Xbox"
-}
--- Variáveis globais para ESP
-local espNameEnabled = false
-local espTracersEnabled = false
-local espHitboxEnabled = false
-local espFullEnabled = false
-local espVidaEnabled = false 
-local espRGBEnabled = false 
-local espLabels = {}
-local espTracers = {}
-local espHealthBars = {} 
-
-local safePlayers = {} -- Tabela para armazenar jogadores que o aimbot deve ignorar (DEVE SER ADICIONADA)
-local isAiming = false -- Variável para controlar se o jogador está mirando (DEVE SER ADICIONADA)
-local aimbotConnection = nil -- Variável de conexão para o RenderStepped (DEVE SER ADICIONADA)
-
--- GUI principal
-local gui = Instance.new("ScreenGui")
-pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
-gui.Name = "GNewStore"
-gui.ResetOnSpawn = false
-gui.Parent = game:GetService("CoreGui")
-
-local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 500, 0, 400)
-menu.Position = UDim2.new(0.5, -250, 0.4, -200)
-menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-menu.BorderSizePixel = 0
-menu.Active = true
-menu.Draggable = true
-menu.Parent = gui
-
--- Borda arredondada
-local menuCorner = Instance.new("UICorner")
-menuCorner.CornerRadius = UDim.new(0, 12)
-menuCorner.Parent = menu
-
-local border = Instance.new("UIStroke")
-border.Color = Color3.fromRGB(100, 200, 255)
-border.Thickness = 2
-border.Parent = menu
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 0, 40)
-title.Position = UDim2.new(0, 10, 0, 5)
-title.BackgroundTransparency = 1
-title.Text = "G NEW STORE MENU"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 24
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = menu
-
--- Botão fechar
-local closeBtn = Instance.new("TextButton")
-closeBtn.Text = "X"
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.TextColor3 = Color3.new(1, 0.3, 0.3)
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Parent = menu
-
--- Botão minimizar
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Text = "_"
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.TextSize = 16
-minimizeBtn.TextColor3 = Color3.new(1, 1, 0.3)
-minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-minimizeBtn.Position = UDim2.new(1, -70, 0, 5)
-minimizeBtn.BackgroundTransparency = 1
-minimizeBtn.Parent = menu
-
-closeBtn.MouseButton1Click:Connect(function()
-gui:Destroy()
-end)
-
--- Botão flutuante "G"
-local reopenButton = Instance.new("TextButton")
-reopenButton.Size = UDim2.new(0, 40, 0, 40)
-reopenButton.Position = UDim2.new(0, 10, 1, -50)
-reopenButton.AnchorPoint = Vector2.new(0, 1)
-reopenButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-reopenButton.Text = "G"
-reopenButton.TextColor3 = Color3.new(1, 1, 1)
-reopenButton.Font = Enum.Font.GothamBold
-reopenButton.TextSize = 20
-reopenButton.Visible = false
-reopenButton.Parent = gui
-
-local reopenCorner = Instance.new("UICorner")
-reopenCorner.CornerRadius = UDim.new(1, 0)
-reopenCorner.Parent = reopenButton
-
-local reopenStroke = Instance.new("UIStroke")
-reopenStroke.Color = Color3.fromRGB(100, 200, 255)
-reopenStroke.Thickness = 2
-reopenStroke.Parent = reopenButton
-
-minimizeBtn.MouseButton1Click:Connect(function()
-menu.Visible = false
-reopenButton.Visible = true
-end)
-
-reopenButton.MouseButton1Click:Connect(function()
-menu.Visible = true
-reopenButton.Visible = false
-end)
-
-local tabsContainer = Instance.new("Frame")
-tabsContainer.Size = UDim2.new(1, -20, 0, 40)
-tabsContainer.Position = UDim2.new(0, 10, 0, 50)
-tabsContainer.BackgroundTransparency = 1
-tabsContainer.Parent = menu
-
-local contentContainer = Instance.new("Frame")
-contentContainer.Size = UDim2.new(1, -40, 1, -110)
-contentContainer.Position = UDim2.new(0, 20, 0, 90)
-contentContainer.BackgroundTransparency = 1
-contentContainer.Parent = menu
-
-local function createTabButton(name, posX)
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 80, 1, 0)
-btn.Position = UDim2.new(0, posX, 0, 0)
-btn.Text = name
-btn.BackgroundTransparency = 1
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.Gotham
-btn.TextSize = 18
-btn.Parent = tabsContainer
-
-local corner = Instance.new("UICorner")  
-corner.CornerRadius = UDim.new(0, 6)  
-corner.Parent = btn  
-
-btn.MouseEnter:Connect(function()  
-    btn.BackgroundTransparency = 0.2  
-end)  
-btn.MouseLeave:Connect(function()  
-    btn.BackgroundTransparency = 1  
-end)  
-
-return btn
-
+if not HttpService.HttpEnabled then
+    warn("[KeyAuth] HttpService não está ativado. O script não pode ser executado.")
+    return
 end
-local espFrame = Instance.new("Frame")
-espFrame.Size = UDim2.new(1, 0, 1, 0)
-espFrame.BackgroundTransparency = 1
-espFrame.Parent = contentContainer
 
-local hitboxFrame = Instance.new("Frame")
-hitboxFrame.Size = UDim2.new(1, 0, 1, 0)
-hitboxFrame.BackgroundTransparency = 1
-hitboxFrame.Visible = false
-hitboxFrame.Parent = contentContainer
+-- Variáveis de controle de execução
+local IsAuthenticated = false
+local KeyAuthGui 
+
+-- ===============================================
+-- 3. FUNÇÃO DE VALIDAÇÃO DA CHAVE KEYAUTH
+-- ===============================================
+
+local function ValidateKey(key_input)
+    local full_url = string.format(
+        "%s?type=license&key=%s&name=%s&ownerid=%s&secret=%s&version=%s&hwid=%s",
+        KEYAUTH_CONFIG.API_URL,
+        HttpService:UrlEncode(key_input),
+        HttpService:UrlEncode(KEYAUTH_CONFIG.Name),
+        HttpService:UrlEncode(KEYAUTH_CONFIG.OwnerID),
+        HttpService:UrlEncode(KEYAUTH_CONFIG.Secret),
+        HttpService:UrlEncode(KEYAUTH_CONFIG.Version),
+        HttpService:UrlEncode(LocalPlayer.UserId)
+    )
+
+    local success, response = pcall(function()
+        return HttpService:GetAsync(full_url)
+    end)
+
+    if success then
+        local data
+        local decodeSuccess, decodedData = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+
+        if decodeSuccess and decodedData then
+            data = decodedData
+        else
+             return false, "Resposta API inválida."
+        end
+        
+        if data.success then
+            return true, data
+        else
+            return false, data.message
+        end
+    else
+        warn("[KeyAuth] Erro na Requisição HTTP:", response)
+        return false, "Erro de conexão HTTP."
+    end
+end
+
+-- ===============================================
+-- 4. UI MODERNA DE LOGIN (KEYAUTH)
+-- ===============================================
+
+local function SetupModernKeyUI()
+    -- Cria a ScreenGui no CoreGui e a protege
+    KeyAuthGui = Instance.new("ScreenGui", CoreGui)
+    pcall(function() if syn and syn.protect_gui then syn.protect_gui(KeyAuthGui) end end)
+    KeyAuthGui.Name = "KeyAuthLoader"
+    
+    -- FRAME PRINCIPAL (MODERNO)
+    local MainFrame = Instance.new("Frame", KeyAuthGui)
+    MainFrame.Size = UDim2.new(0, 350, 0, 200)
+    MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25) 
+    MainFrame.BorderSizePixel = 0
+    
+    local FrameCorner = Instance.new("UICorner", MainFrame)
+    FrameCorner.CornerRadius = UDim.new(0, 15)
+    
+    local FrameStroke = Instance.new("UIStroke", MainFrame)
+    FrameStroke.Color = Color3.fromRGB(0, 150, 255)
+    FrameStroke.Thickness = 2
+    FrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- TÍTULO
+    local Title = Instance.new("TextLabel", MainFrame)
+    Title.Text = KEYAUTH_CONFIG.Name .. " - AUTENTICAÇÃO"
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.Position = UDim2.new(0, 0, 0, 10)
+    Title.BackgroundTransparency = 1
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 20
+
+    -- CAMPO DA CHAVE
+    local KeyTextBox = Instance.new("TextBox", MainFrame)
+    KeyTextBox.PlaceholderText = "Insira sua Chave de Licença"
+    KeyTextBox.Text = ""
+    KeyTextBox.Size = UDim2.new(0.8, 0, 0, 35)
+    KeyTextBox.Position = UDim2.new(0.5, 0, 0.5, -17) 
+    KeyTextBox.AnchorPoint = Vector2.new(0.5, 0.5)
+    KeyTextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    KeyTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    KeyTextBox.Font = Enum.Font.SourceSans
+    KeyTextBox.TextSize = 16
+    
+    local KeyCorner = Instance.new("UICorner", KeyTextBox)
+    KeyCorner.CornerRadius = UDim.new(0, 8)
+
+    -- MENSAGEM DE STATUS
+    local StatusLabel = Instance.new("TextLabel", MainFrame)
+    StatusLabel.Text = "Aguardando chave..."
+    StatusLabel.Size = UDim2.new(0.8, 0, 0, 20)
+    StatusLabel.Position = UDim2.new(0.5, 0, 0.7, -5)
+    StatusLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+    StatusLabel.Font = Enum.Font.SourceSans
+    StatusLabel.TextSize = 14
+
+    -- BOTÃO DE LOGIN
+    local LoginButton = Instance.new("TextButton", MainFrame)
+    LoginButton.Text = "ENTRAR"
+    LoginButton.Size = UDim2.new(0.8, 0, 0, 40)
+    LoginButton.Position = UDim2.new(0.5, 0, 0.85, 0)
+    LoginButton.AnchorPoint = Vector2.new(0.5, 0)
+    LoginButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255) 
+    LoginButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LoginButton.Font = Enum.Font.GothamBold
+    LoginButton.TextSize = 18
+    
+    local ButtonCorner = Instance.new("UICorner", LoginButton)
+    ButtonCorner.CornerRadius = UDim.new(0, 10)
+
+    -- LÓGICA DO BOTÃO
+    LoginButton.MouseButton1Click:Connect(function()
+        local key = KeyTextBox.Text:gsub("%s+", "")
+        if key == "" then return end
+
+        LoginButton.Text = "VALIDANDO..."
+        LoginButton.Active = false
+        StatusLabel.Text = "Conectando ao KeyAuth..."
+        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 255) 
+
+        coroutine.wrap(function()
+            local success, result = ValidateKey(key)
+
+            if success then
+                StatusLabel.Text = "Autenticado! Iniciando..."
+                StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0) 
+                IsAuthenticated = true
+                wait(1)
+                KeyAuthGui:Destroy()
+                
+            else
+                -- CHAVE INVÁLIDA
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50) 
+                StatusLabel.Text = "KEY INVALIDA!" 
+                
+                LoginButton.Text = "TENTAR NOVAMENTE"
+                LoginButton.Active = true
+            end
+        end)()
+    end)
+end
+
+-- ===============================================
+-- 5. FUNÇÃO DE INÍCIO DO SCRIPT PRINCIPAL
+-- (TODO O SEU CÓDIGO ORIGINAL ESTÁ AQUI DENTRO)
+-- ===============================================
+
+local function RunMainScript()
+    
+    -- O SEU CÓDIGO COMEÇA AQUI!
+
+    -- Variáveis de controle de Puxar Itens (Auto Loot)
+    local puxarItensToggle = false
+    local puxarItensCoroutine
+    local itens = {
+        "AK47", "Uzi", "PARAFAL", "Glock 17", "Faca", "IA2", "G3", "Dinamite",
+        "Hi Power", "Natalina", "HK416", "Lockpick", "Escudo", "Skate",
+        "Saco de lixo", "Peca de Arma", "Tratamento", "AR-15", "PS5", "C4", "USP", "Xbox"
+    }
+    -- Variáveis globais para ESP
+    local espNameEnabled = false
+    local espTracersEnabled = false
+    local espHitboxEnabled = false
+    local espFullEnabled = false
+    local espVidaEnabled = false 
+    local espRGBEnabled = false 
+    local espLabels = {}
+    local espTracers = {}
+    local espHealthBars = {} 
+
+    local safePlayers = {} -- Tabela para armazenar jogadores que o aimbot deve ignorar (DEVE SER ADICIONADA)
+    local isAiming = false -- Variável para controlar se o jogador está mirando (DEVE SER ADICIONADA)
+    local aimbotConnection = nil -- Variável de conexão para o RenderStepped (DEVE SER ADICIONADA)
+
+    -- GUI principal
+    local gui = Instance.new("ScreenGui")
+    pcall(function() if syn and syn.protect_gui then syn.protect_gui(gui) end end)
+    gui.Name = "GNewStore"
+    gui.ResetOnSpawn = false
+    gui.Parent = CoreGui -- Mudado para CoreGui para consistência
+
+    local menu = Instance.new("Frame")
+    menu.Size = UDim2.new(0, 500, 0, 400)
+    menu.Position = UDim2.new(0.5, -250, 0.4, -200)
+    menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    menu.BorderSizePixel = 0
+    menu.Active = true
+    menu.Draggable = true
+    menu.Parent = gui
+
+    -- Borda arredondada
+    local menuCorner = Instance.new("UICorner")
+    menuCorner.CornerRadius = UDim.new(0, 12)
+    menuCorner.Parent = menu
+
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(100, 200, 255)
+    border.Thickness = 2
+    border.Parent = menu
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -40, 0, 40)
+    title.Position = UDim2.new(0, 10, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "G NEW STORE MENU"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = menu
+
+    -- Botão fechar
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 16
+    closeBtn.TextColor3 = Color3.new(1, 0.3, 0.3)
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -35, 0, 5)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Parent = menu
+
+    -- Botão minimizar
+    local minimizeBtn = Instance.new("TextButton")
+    minimizeBtn.Text = "_"
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.TextSize = 16
+    minimizeBtn.TextColor3 = Color3.new(1, 1, 0.3)
+    minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+    minimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+    minimizeBtn.BackgroundTransparency = 1
+    minimizeBtn.Parent = menu
+
+    closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+    end)
+
+    -- Botão flutuante "G"
+    local reopenButton = Instance.new("TextButton")
+    reopenButton.Size = UDim2.new(0, 40, 0, 40)
+    reopenButton.Position = UDim2.new(0, 10, 1, -50)
+    reopenButton.AnchorPoint = Vector2.new(0, 1)
+    reopenButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+    reopenButton.Text = "G"
+    reopenButton.TextColor3 = Color3.new(1, 1, 1)
+    reopenButton.Font = Enum.Font.GothamBold
+    reopenButton.TextSize = 20
+    reopenButton.Visible = false
+    reopenButton.Parent = gui
+
+    local reopenCorner = Instance.new("UICorner")
+    reopenCorner.CornerRadius = UDim.new(1, 0)
+    reopenCorner.Parent = reopenButton
+
+    local reopenStroke = Instance.new("UIStroke")
+    reopenStroke.Color = Color3.fromRGB(100, 200, 255)
+    reopenStroke.Thickness = 2
+    reopenStroke.Parent = reopenButton
+
+    minimizeBtn.MouseButton1Click:Connect(function()
+    menu.Visible = false
+    reopenButton.Visible = true
+    end)
+
+    reopenButton.MouseButton1Click:Connect(function()
+    menu.Visible = true
+    reopenButton.Visible = false
+    end)
+
+    local tabsContainer = Instance.new("Frame")
+    tabsContainer.Size = UDim2.new(1, -20, 0, 40)
+    tabsContainer.Position = UDim2.new(0, 10, 0, 50)
+    tabsContainer.BackgroundTransparency = 1
+    tabsContainer.Parent = menu
+
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Size = UDim2.new(1, -40, 1, -110)
+    contentContainer.Position = UDim2.new(0, 20, 0, 90)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.Parent = menu
+
+    local function createTabButton(name, posX)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 80, 1, 0)
+        btn.Position = UDim2.new(0, posX, 0, 0)
+        btn.Text = name
+        btn.BackgroundTransparency = 1
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 18
+        btn.Parent = tabsContainer
+
+        local corner = Instance.new("UICorner")  
+        corner.CornerRadius = UDim.new(0, 6)  
+        corner.Parent = btn  
+
+        btn.MouseEnter:Connect(function()  
+            btn.BackgroundTransparency = 0.2  
+        end)  
+        btn.MouseLeave:Connect(function()  
+            btn.BackgroundTransparency = 1  
+        end)  
+
+        return btn
+    end
+
+    local espFrame = Instance.new("Frame")
+    espFrame.Size = UDim2.new(1, 0, 1, 0)
+    espFrame.BackgroundTransparency = 1
+    espFrame.Parent = contentContainer
+
+    local hitboxFrame = Instance.new("Frame")
+    hitboxFrame.Size = UDim2.new(1, 0, 1, 0)
+    hitboxFrame.BackgroundTransparency = 1
+    hitboxFrame.Visible = false
+    hitboxFrame.Parent = contentContainer 
+    
+    -- FIM DO SEU CÓDIGO ORIGINAL
+end
+
+
+-- ===============================================
+-- 6. LOADER (GARANTE A ORDEM DE EXECUÇÃO)
+-- ===============================================
+
+SetupModernKeyUI()
+
+-- Trava a execução do script até que IsAuthenticated seja verdadeiro (chave válida)
+repeat
+    wait(0.5)
+until IsAuthenticated
+
+-- Se a chave é válida, executa a função que contém o seu robô e a UI principal.
+RunMainScript()
+
+-- FIM DO SCRIPT
 
 local tpFrame = Instance.new("Frame")
 tpFrame.Size = UDim2.new(1, 0, 1, 0)
