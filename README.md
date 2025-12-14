@@ -172,33 +172,8 @@
     hitboxFrame.BackgroundTransparency = 1
     hitboxFrame.Visible = false
     hitboxFrame.Parent = contentContainer 
-    
-    -- FIM DO SEU CÓDIGO ORIGINAL
 end
 
-
--- ===============================================
--- 6. LOADER (GARANTE A ORDEM DE EXECUÇÃO)
--- ===============================================
-
--- Tenta garantir que o LocalPlayer esteja disponível antes de iniciar a UI
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    repeat 
-        wait() 
-        LocalPlayer = Players.LocalPlayer
-    until LocalPlayer
-end
-
-SetupModernKeyUI()
-
--- Trava a execução do script até que IsAuthenticated seja verdadeiro (chave válida)
-repeat
-    wait(0.5)
-until IsAuthenticated
-
--- Se a chave é válida, executa a função que contém o seu robô e a UI principal.
-RunMainScript()
 local tpFrame = Instance.new("Frame")
 tpFrame.Size = UDim2.new(1, 0, 1, 0)
 tpFrame.BackgroundTransparency = 1
